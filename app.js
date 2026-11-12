@@ -4,7 +4,8 @@
   const STORAGE_KEY = "faculty_tracker_v3";
   const SCRIPT_URL_KEY = "faculty_tracker_script_url";
   // Optional: paste your deployed Google Apps Script Web App URL here so every browser uses it automatically
-  const DEFAULT_SCRIPT_URL = "";
+  const DEFAULT_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbzth_kW3cN2G8ksTdOJQAENDYrP2p6OV1XSLqZZIEv97wVfQYwk5P_AmtnnPZwyLJ0c/exec";
   const DEFAULT_CLIENTS = ["NPR", "AVS", "SINCET", "IFET", "IG", "ARJUN"];
 
   function todayISO() {
@@ -308,6 +309,7 @@
     el.loginForm.reset();
     el.reportDate.value = todayISO();
     renderApp();
+    syncFromSheet({ quiet: true });
   });
 
   el.logoutBtn.addEventListener("click", () => {
