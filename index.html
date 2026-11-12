@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Faculty Activity &amp; Compliance Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- LOGIN VIEW -->
+  <main id="login-view" class="auth-shell">
+    <section class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-badge">FT</div>
+        <div>
+          <h1>Faculty Tracker</h1>
+          <p class="muted">Client activities, calendar &amp; grievance reporting</p>
+        </div>
+      </div>
+
+      <form id="login-form" class="stack-md">
+        <div class="field">
+          <label for="login-username">Username</label>
+          <input id="login-username" type="text" placeholder="Enter username" required autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" placeholder="Enter password" required autocomplete="current-password" />
+        </div>
+        <p id="login-error" class="error-text hidden" role="alert"></p>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+      </form>
+
+      <div class="demo-box">
+        <p class="demo-title">Quick Demo Login</p>
+        <div id="demo-accounts" class="demo-chips"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- APP SHELL (ADMIN & FACULTY) -->
+  <div id="app-shell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-badge small">FT</div>
+        <div>
+          <strong class="topbar-title">Faculty Tracker</strong>
+          <span id="user-role-badge" class="role-pill"></span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="sheet-status-pill" class="badge badge-warn">Local Cache</span>
+        <button id="sync-now-btn" type="button" class="btn btn-ghost btn-sm hidden">Sync Sheet</button>
+        <span id="current-user-label" class="user-label"></span>
+        <button id="logout-btn" type="button" class="btn btn-ghost">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- ADMIN DASHBOARD -->
+    <main id="admin-view" class="container hidden">
+      <div class="page-head">
+        <div>
+          <h2>Admin Dashboard</h2>
+          <p class="muted">Create faculties, assign clients, and review daily 3-step submissions.</p>
+        </div>
+        <div class="head-actions">
+          <button id="reset-demo-btn" type="button" class="btn btn-ghost btn-sm">Reset Demo Data</button>
+        </div>
+      </div>
+
+      <section id="admin-stats" class="stats-grid"></section>
+
+      <section class="card mb-lg">
+        <div class="card-head wrap">
+          <div>
+            <h3>Client Completion Dashboard (Activities &amp; Calendar)</h3>
+            <p class="muted small-text">Live completion status per client across faculties.</p>
+          </div>
+          <div class="filters">
+            <select id="dash-filter-faculty" aria-label="Dashboard faculty filter">
+              <option value="all">All Faculties</option>
+            </select>
+            <input id="dash-filter-date" type="date" aria-label="Dashboard date" />
+          </div>
+        </div>
+        <div id="admin-completion-dashboard" class="mt-md"></div>
+      </section>
+
+      <nav class="tabs" aria-label="Admin sections">
+        <button type="button" class="tab-btn active" data-tab="reports-tab">Faculty Submissions</button>
+        <button type="button" class="tab-btn" data-tab="faculties-tab">Manage Faculties</button>
+        <button type="button" class="tab-btn" data-tab="sheet-tab">Google Sheet Sync</button>
+      </nav>
+
+      <!-- TAB 1: SUBMISSIONS -->
+      <section id="reports-tab" class="tab-panel">
+        <div class="card">
+          <div class="card-head wrap">
+            <h3>Submitted Reports</h3>
+            <div class="filters">
+              <select id="filter-faculty" aria-label="Filter by faculty">
+                <option value="all">All Faculties</option>
+              </select>
+              <input id="filter-date" type="date" aria-label="Filter by date" />
+              <select id="filter-status" aria-label="Filter by completion">
+                <option value="all">All Statuses</option>
+                <option value="incomplete">Has Not Completed / Remarks</option>
+                <option value="complete">All Completed</option>
+                <option value="grievance">Has Grievances</option>
+              </select>
+              <button id="clear-filters-btn" type="button" class="btn btn-ghost btn-sm">Clear</button>
+            </div>
+          </div>
+          <div id="admin-reports-list" class="reports-list"></div>
+        </div>
+      </section>
+
+      <!-- TAB 2: MANAGE FACULTIES -->
+      <section id="faculties-tab" class="tab-panel hidden">
+        <div class="two-col">
+          <div class="card">
+            <h3>Create New Faculty</h3>
+            <p class="muted small-text">Faculties sign in with these credentials to complete their 3 daily checks.</p>
+            <form id="create-faculty-form" class="stack-md mt-md">
+              <div class="field">
+                <label for="fac-name">Full Name</label>
+                <input id="fac-name" type="text" placeholder="e.g. Dr. Priya Sharma" required />
+              </div>
+              <div class="field">
+                <label for="fac-dept">Department / Role</label>
+                <input id="fac-dept" type="text" placeholder="e.g. Computer Science" required />
+              </div>
+              <div class="two-input">
+                <div class="field">
+                  <label for="fac-username">Username</label>
+                  <input id="fac-username" type="text" placeholder="e.g. priya" required />
+                </div>
+                <div class="field">
+                  <label for="fac-password">Password</label>
+                  <input id="fac-password" type="text" placeholder="e.g. pass123" required />
+                </div>
+              </div>
+              <div class="field">
+                <label for="fac-clients">Assigned Clients (comma-separated)</label>
+                <textarea id="fac-clients" rows="2" placeholder="NPR, AVS, SINCET, IFET, IG, ARJUN"></textarea>
+                <span class="hint">Leave blank to use default clients (NPR, AVS, SINCET, IFET, IG, ARJUN).</span>
+              </div>
+              <p id="create-faculty-error" class="error-text hidden" role="alert"></p>
+              <button type="submit" class="btn btn-primary">Create Faculty</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h3>Faculty Directory</h3>
+              <span id="faculty-count-pill" class="count-pill">0</span>
+            </div>
+            <div id="faculty-directory" class="faculty-list mt-md"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: GOOGLE SHEET SYNC -->
+      <section id="sheet-tab" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-head wrap">
+            <div>
+              <h3>Google Sheet Integration</h3>
+              <p class="muted small-text">Connect your Google Apps Script Web App URL so all faculties and submissions store directly in your spreadsheet.</p>
+            </div>
+            <a
+              class="btn btn-ghost btn-sm"
+              href="https://docs.google.com/spreadsheets/d/1qVaJ33gq2IcBon1GbKCbOhm1onOAJRHNtytGzN6Pmns/edit?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Open Google Sheet ↗</a>
+          </div>
+
+          <form id="sheet-config-form" class="stack-md mt-md">
+            <div class="field">
+              <label for="script-url-input">Google Apps Script Web App URL</label>
+              <input
+                id="script-url-input"
+                type="text"
+                placeholder="https://script.google.com/macros/s/.../exec"
+              />
+              <span class="hint">
+                Open your Google Sheet → Extensions → Apps Script → paste <code>google-apps-script.gs</code> → Deploy as Web App (Anyone) → paste the URL here.
+              </span>
+            </div>
+            <p id="sheet-config-msg" class="small-text hidden"></p>
+            <div class="filters">
+              <button type="submit" class="btn btn-primary">Connect &amp; Initialize Sheet</button>
+              <button id="disconnect-sheet-btn" type="button" class="btn btn-ghost">Disconnect</button>
+            </div>
+          </form>
+
+          <div class="demo-box">
+            <p class="demo-title">Aligned Sheet Columns Created Automatically</p>
+            <p class="small-text muted">
+              <strong>Submissions tab:</strong> <code>Report ID</code>, <code>Date</code>, <code>Faculty ID</code>, <code>Faculty Name</code>, <code>Department</code>, <code>Client Name</code>, <code>Activity Status</code>, <code>Activity Remarks</code>, <code>Calendar Status</code>, <code>Calendar Remarks</code>, <code>Grievance</code>, <code>Updated At</code>
+            </p>
+            <p class="small-text muted mt-md">
+              <strong>Faculties tab:</strong> <code>Faculty ID</code>, <code>Full Name</code>, <code>Department</code>, <code>Username</code>, <code>Password</code>, <code>Clients</code>, <code>Created At</code>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FACULTY DASHBOARD -->
+    <main id="faculty-view" class="container hidden">
+      <div class="page-head">
+        <div>
+          <h2>Faculty Daily Checklist</h2>
+          <p class="muted">Complete all 3 tasks below. Remarks are mandatory for any item marked Not Completed.</p>
+        </div>
+        <div class="field inline-date">
+          <label for="report-date">Report Date</label>
+          <input id="report-date" type="date" />
+        </div>
+      </div>
+
+      <section class="card mb-lg">
+        <div class="card-head wrap">
+          <div>
+            <h3>My Client Completion Dashboard</h3>
+            <p class="muted small-text">Live overview of your assigned clients' Activities &amp; Calendar status for the selected date.</p>
+          </div>
+        </div>
+        <div id="faculty-completion-dashboard" class="mt-md"></div>
+      </section>
+
+      <form id="faculty-checklist-form" class="stack-lg" novalidate>
+        <!-- TASK 1: CLIENT ACTIVITIES -->
+        <section class="card">
+          <div>
+            <span class="step-tag">Task 1 of 3</span>
+            <h3>Client Activities</h3>
+            <p class="muted small-text">Check &amp; update whether each assigned client's activities are completed or not.</p>
+          </div>
+
+          <div id="client-activities-list" class="table-wrap mt-md"></div>
+        </section>
+
+        <!-- TASK 2: CALENDAR TABLE -->
+        <section class="card">
+          <span class="step-tag">Task 2 of 3</span>
+          <h3>Calendar</h3>
+          <p class="muted small-text">Check &amp; update whether each client's calendar is completed or not. Remarks are mandatory if Not Completed.</p>
+          <div id="calendar-table-list" class="table-wrap mt-md"></div>
+        </section>
+
+        <!-- TASK 3: GRIEVANCES -->
+        <section class="card">
+          <span class="step-tag">Task 3 of 3</span>
+          <h3>Grievances</h3>
+          <p class="muted small-text">Type any grievances next to the client name (optional).</p>
+          <div id="grievance-table-list" class="table-wrap mt-md"></div>
+        </section>
+
+        <div class="submit-bar">
+          <p id="faculty-form-error" class="error-text hidden" role="alert"></p>
+          <button type="submit" class="btn btn-primary btn-lg">Save &amp; Submit Update</button>
+        </div>
+      </form>
+
+      <section class="card mt-lg">
+        <h3>My Previous Submissions</h3>
+        <div id="faculty-history-list" class="reports-list mt-md"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
