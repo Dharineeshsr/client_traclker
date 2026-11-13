@@ -166,7 +166,9 @@ function deleteMatchingRows_(sheet, matchFn) {
 }
 
 function formatStatusLabel_(status) {
-  return status === "completed" ? "Completed" : "Not Completed";
+  if (status === "completed") return "Completed";
+  if (status === "not_completed") return "Not Completed";
+  return "Not Marked";
 }
 
 function doPost(e) {

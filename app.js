@@ -111,7 +111,6 @@
     facultyView: document.getElementById("faculty-view"),
     resetDemoBtn: document.getElementById("reset-demo-btn"),
     adminStats: document.getElementById("admin-stats"),
-    dashFilterFaculty: document.getElementById("dash-filter-faculty"),
     dashFilterDate: document.getElementById("dash-filter-date"),
     adminCompletionDashboard: document.getElementById("admin-completion-dashboard"),
     facultyCompletionDashboard: document.getElementById("faculty-completion-dashboard"),
@@ -475,9 +474,7 @@
     renderAdminReports();
   });
 
-  [el.dashFilterFaculty, el.dashFilterDate].forEach((control) => {
-    control.addEventListener("change", renderAdminCompletionDashboard);
-  });
+  el.dashFilterDate.addEventListener("change", renderAdminCompletionDashboard);
 
   function renderAdminView() {
     if (!el.dashFilterDate.value) {
@@ -490,154 +487,164 @@
     renderAdminReports();
   }
 
-  function statusBadgeHtml(status) {
-    if (status === "completed") return `<span class="badge badge-success">Completed</span>`;
-    if (status === "not_completed") return `<span class="badge badge-danger">Not Completed</span>`;
-    return `<span class="badge badge-neutral">Pending</span>`;
+  function getAllColleges() {
+    const list = [...DEFAULT_CLIENTS];
+    state.users.forEach((u) => {
+      if (Array.isArray(u.clients)) {
+        u.clients.forEach((c) => {
+          if (!list.some((existing) => existing.toLowerCase() === c.toLowerCase())) {
+            list.push(c);
+          }
+        });
+      }
+    });
+    state.reports.forEach((r) => {
+      if (Array.isArray(r.clients)) {
+        r.clients.forEach((c) => {
+          if (!list.some((existing) => existing.toLowerCase() === c.name.toLowerCase())) {
+            list.push(c.name);
+          }
+        });
+      }
+    });
+    return list;
   }
 
-  function buildProgressStats(items, key) {
+  function getCollegeStatusForDate(collegeName, targetDate) {
+    const reportsForDate = state.reports
+      .filter((r) => r.date === targetDate)
+      .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+    for (const report of reportsForDate) {
+      if (!Array.isArray(report.clients)) continue;
+      const found = report.clients.find(
+        (c) =>
+          c.name.toLowerCase() === collegeName.toLowerCase() &&
+          (c.status || c.calendarStatus || (c.grievance || "").trim())
+      );
+      if (found) {
+        return {
+          activityStatus: found.status || "not_marked",
+          activityRemarks: found.remarks || "",
+          calendarStatus: found.calendarStatus || "not_marked",
+          calendarRemarks: found.calendarRemarks || "",
+          grievance: (found.grievance || "").trim()
+        };
+      }
+    }
+
+    return {
+      activityStatus: "not_marked",
+      activityRemarks: "",
+      calendarStatus: "not_marked",
+      calendarRemarks: "",
+      grievance: ""
+    };
+  }
+
+  function renderCollegeDashboardTable(container, items) {
+    if (!container) return;
+    if (items.length === 0) {
+      container.innerHTML = `<div class="empty-state">No colleges found.</div>`;
+      return;
+    }
+
     const total = items.length;
-    const completed = items.filter((i) => i[key] === "completed").length;
-    const notCompleted = items.filter((i) => i[key] === "not_completed").length;
-    const pending = total - completed - notCompleted;
-    const pct = total ? Math.round((completed / total) * 100) : 0;
-    return { total, completed, notCompleted, pending, pct };
-  }
+    const actDone = items.filter((i) => i.activityStatus === "completed").length;
+    const actNotDone = items.filter((i) => i.activityStatus === "not_completed").length;
+    const actNotMarked = total - actDone - actNotDone;
 
-  function renderProgressSummaryHtml(actStats, calStats) {
-    return `
+    const calDone = items.filter((i) => i.calendarStatus === "completed").length;
+    const calNotDone = items.filter((i) => i.calendarStatus === "not_completed").length;
+    const calNotMarked = total - calDone - calNotDone;
+
+    const summaryHtml = `
       <div class="progress-summary-grid">
         <div class="progress-card">
           <div class="progress-head">
-            <strong>Activities Completion</strong>
-            <span class="progress-pct">${actStats.pct}%</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill green" style="width:${actStats.pct}%"></div>
+            <strong>Activities Status</strong>
+            <span class="progress-pct">${actDone} / ${total}</span>
           </div>
           <div class="progress-meta">
-            <span>${actStats.completed} Completed</span>
-            <span>${actStats.notCompleted} Not Completed</span>
-            <span>${actStats.pending} Pending</span>
+            <span class="badge badge-success">${actDone} Completed</span>
+            <span class="badge badge-danger">${actNotDone} Not Completed</span>
+            <span class="badge badge-neutral">${actNotMarked} Not Marked</span>
           </div>
         </div>
 
         <div class="progress-card">
           <div class="progress-head">
-            <strong>Calendar Completion</strong>
-            <span class="progress-pct">${calStats.pct}%</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" style="width:${calStats.pct}%"></div>
+            <strong>Calendar Status</strong>
+            <span class="progress-pct">${calDone} / ${total}</span>
           </div>
           <div class="progress-meta">
-            <span>${calStats.completed} Completed</span>
-            <span>${calStats.notCompleted} Not Completed</span>
-            <span>${calStats.pending} Pending</span>
+            <span class="badge badge-success">${calDone} Completed</span>
+            <span class="badge badge-danger">${calNotDone} Not Completed</span>
+            <span class="badge badge-neutral">${calNotMarked} Not Marked</span>
           </div>
         </div>
+      </div>`;
+
+    const rowsHtml = items
+      .map((item) => {
+        let actBadge = `<span class="badge badge-neutral">Not Marked</span>`;
+        if (item.activityStatus === "completed") {
+          actBadge = `<span class="badge badge-success">Completed</span>`;
+        } else if (item.activityStatus === "not_completed") {
+          actBadge = `<span class="badge badge-danger">Not Completed</span>` +
+            (item.activityRemarks ? `<div class="remark-line">${escapeHtml(item.activityRemarks)}</div>` : "");
+        }
+
+        let calBadge = `<span class="badge badge-neutral">Not Marked</span>`;
+        if (item.calendarStatus === "completed") {
+          calBadge = `<span class="badge badge-success">Completed</span>`;
+        } else if (item.calendarStatus === "not_completed") {
+          calBadge = `<span class="badge badge-danger">Not Completed</span>` +
+            (item.calendarRemarks ? `<div class="remark-line">${escapeHtml(item.calendarRemarks)}</div>` : "");
+        }
+
+        let grievanceBadge = `<span class="badge badge-neutral">No</span>`;
+        if (item.grievance.length > 0) {
+          grievanceBadge = `<span class="badge badge-warn">Yes</span>
+            <div class="small-text" style="margin-top:0.3rem;">${escapeHtml(item.grievance)}</div>`;
+        }
+
+        return `
+        <tr>
+          <td class="col-client" style="font-weight:700;font-size:0.95rem;">${escapeHtml(item.name)}</td>
+          <td>${actBadge}</td>
+          <td>${calBadge}</td>
+          <td>${grievanceBadge}</td>
+        </tr>`;
+      })
+      .join("");
+
+    container.innerHTML = `
+      ${summaryHtml}
+      <div class="table-wrap mt-md">
+        <table class="checklist-table">
+          <thead>
+            <tr>
+              <th>College Name</th>
+              <th>Activity</th>
+              <th>Calendar</th>
+              <th>Grievance</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
       </div>`;
   }
 
   function renderAdminCompletionDashboard() {
-    const selectedFac = el.dashFilterFaculty.value || "all";
     const selectedDate = el.dashFilterDate.value || todayISO();
-    const targetFaculties = faculties().filter((f) =>
-      selectedFac === "all" ? true : f.id === selectedFac
-    );
+    const colleges = getAllColleges();
+    const items = colleges.map((collegeName) => ({
+      name: collegeName,
+      ...getCollegeStatusForDate(collegeName, selectedDate)
+    }));
 
-    if (targetFaculties.length === 0) {
-      el.adminCompletionDashboard.innerHTML = `<div class="empty-state">No faculties found.</div>`;
-      return;
-    }
-
-    const flatItems = [];
-    const byClient = new Map();
-
-    targetFaculties.forEach((fac) => {
-      const report = state.reports.find((r) => r.facultyId === fac.id && r.date === selectedDate);
-      const clientNames = Array.isArray(fac.clients) ? fac.clients : [];
-
-      clientNames.forEach((clientName) => {
-        const entry = report
-          ? report.clients.find((c) => c.name.toLowerCase() === clientName.toLowerCase())
-          : null;
-        const actStatus = entry ? entry.status : "pending";
-        const calStatus = entry ? entry.calendarStatus || "pending" : "pending";
-
-        const record = {
-          facultyName: fac.name,
-          clientName,
-          actStatus,
-          calStatus
-        };
-        flatItems.push(record);
-
-        if (!byClient.has(clientName)) {
-          byClient.set(clientName, []);
-        }
-        byClient.get(clientName).push(record);
-      });
-    });
-
-    if (flatItems.length === 0) {
-      el.adminCompletionDashboard.innerHTML = `<div class="empty-state">No clients assigned to selected faculties.</div>`;
-      return;
-    }
-
-    const actStats = buildProgressStats(flatItems, "actStatus");
-    const calStats = buildProgressStats(flatItems, "calStatus");
-
-    const cardsHtml = Array.from(byClient.entries())
-      .map(([clientName, rows]) => {
-        const actDone = rows.filter((r) => r.actStatus === "completed").length;
-        const calDone = rows.filter((r) => r.calStatus === "completed").length;
-        const hasIssue = rows.some(
-          (r) => r.actStatus === "not_completed" || r.calStatus === "not_completed"
-        );
-        const allDone = actDone === rows.length && calDone === rows.length;
-        const headerBadge = allDone
-          ? `<span class="badge badge-success">All Done</span>`
-          : hasIssue
-          ? `<span class="badge badge-danger">Incomplete</span>`
-          : `<span class="badge badge-neutral">Pending</span>`;
-
-        const facultyBreakdownHtml = rows
-          .map(
-            (r) => `
-            <div class="client-dash-row">
-              <span class="muted">${escapeHtml(r.facultyName)}</span>
-              <span style="display:flex;gap:0.25rem;flex-wrap:wrap;">
-                <span title="Activity">A: ${statusBadgeHtml(r.actStatus)}</span>
-                <span title="Calendar">C: ${statusBadgeHtml(r.calStatus)}</span>
-              </span>
-            </div>`
-          )
-          .join("");
-
-        return `
-        <div class="client-dash-card">
-          <div class="client-dash-title">
-            <span>${escapeHtml(clientName)}</span>
-            ${headerBadge}
-          </div>
-          <div class="client-dash-row">
-            <span>Activities</span>
-            <strong>${actDone} / ${rows.length} Completed</strong>
-          </div>
-          <div class="client-dash-row">
-            <span>Calendar</span>
-            <strong>${calDone} / ${rows.length} Completed</strong>
-          </div>
-          <div class="client-dash-faculty-list">${facultyBreakdownHtml}</div>
-        </div>`;
-      })
-      .join("");
-
-    el.adminCompletionDashboard.innerHTML =
-      renderProgressSummaryHtml(actStats, calStats) +
-      `<div class="client-dash-grid">${cardsHtml}</div>`;
+    renderCollegeDashboardTable(el.adminCompletionDashboard, items);
   }
 
   function renderAdminStats() {
@@ -676,10 +683,6 @@
     const selected = el.filterFaculty.value || "all";
     el.filterFaculty.innerHTML = optionsHtml;
     el.filterFaculty.value = facList.some((f) => f.id === selected) ? selected : "all";
-
-    const dashSelected = el.dashFilterFaculty.value || "all";
-    el.dashFilterFaculty.innerHTML = optionsHtml;
-    el.dashFilterFaculty.value = facList.some((f) => f.id === dashSelected) ? dashSelected : "all";
   }
 
   function renderFacultyDirectory() {
@@ -952,52 +955,27 @@
   }
 
   function renderFacultyCompletionDashboard() {
-    if (draftClients.length === 0) {
-      el.facultyCompletionDashboard.innerHTML = `<div class="empty-state">No clients assigned by Admin yet.</div>`;
-      return;
-    }
+    const targetDate = el.reportDate.value || todayISO();
+    const colleges = getAllColleges();
+    const items = colleges.map((collegeName) => {
+      const draft = draftClients.find((c) => c.name.toLowerCase() === collegeName.toLowerCase());
+      if (draft && (draft.status || draft.calendarStatus || (draft.grievance || "").trim())) {
+        return {
+          name: collegeName,
+          activityStatus: draft.status || "not_marked",
+          activityRemarks: draft.remarks || "",
+          calendarStatus: draft.calendarStatus || "not_marked",
+          calendarRemarks: draft.calendarRemarks || "",
+          grievance: (draft.grievance || "").trim()
+        };
+      }
+      return {
+        name: collegeName,
+        ...getCollegeStatusForDate(collegeName, targetDate)
+      };
+    });
 
-    const items = draftClients.map((c) => ({
-      name: c.name,
-      actStatus: c.status || "pending",
-      calStatus: c.calendarStatus || "pending"
-    }));
-
-    const actStats = buildProgressStats(items, "actStatus");
-    const calStats = buildProgressStats(items, "calStatus");
-
-    const cardsHtml = items
-      .map((item) => {
-        const allDone = item.actStatus === "completed" && item.calStatus === "completed";
-        const hasIssue =
-          item.actStatus === "not_completed" || item.calStatus === "not_completed";
-        const overallBadge = allDone
-          ? `<span class="badge badge-success">All Done</span>`
-          : hasIssue
-          ? `<span class="badge badge-danger">Not Completed</span>`
-          : `<span class="badge badge-neutral">Pending</span>`;
-
-        return `
-        <div class="client-dash-card">
-          <div class="client-dash-title">
-            <span>${escapeHtml(item.name)}</span>
-            ${overallBadge}
-          </div>
-          <div class="client-dash-row">
-            <span>Activities</span>
-            ${statusBadgeHtml(item.actStatus)}
-          </div>
-          <div class="client-dash-row">
-            <span>Calendar</span>
-            ${statusBadgeHtml(item.calStatus)}
-          </div>
-        </div>`;
-      })
-      .join("");
-
-    el.facultyCompletionDashboard.innerHTML =
-      renderProgressSummaryHtml(actStats, calStats) +
-      `<div class="client-dash-grid">${cardsHtml}</div>`;
+    renderCollegeDashboardTable(el.facultyCompletionDashboard, items);
   }
 
   function renderStatusTable({ container, prefix, statusKey, remarksKey, invalidSet }) {
@@ -1026,6 +1004,12 @@
                   client[statusKey] === "not_completed" ? "checked" : ""
                 } />
                 <span>Not Completed</span>
+              </label>
+              <label class="choice-card">
+                <input type="radio" name="${prefix}Status-${idx}" value="" ${
+                  !client[statusKey] ? "checked" : ""
+                } />
+                <span class="muted">None / Skip</span>
               </label>
             </div>
           </td>
@@ -1125,6 +1109,7 @@
       input.addEventListener("input", () => {
         const idx = Number(input.dataset.grievanceIdx);
         draftClients[idx].grievance = input.value;
+        renderFacultyCompletionDashboard();
       });
     });
   }
@@ -1139,23 +1124,23 @@
     const invalidCalendar = new Set();
     const errors = [];
 
-    if (draftClients.length === 0) {
-      errors.push("Add at least one client to update.");
+    // Find colleges where faculty actually selected a status or typed a grievance
+    const markedColleges = draftClients.filter((c) =>
+      Boolean(c.status || c.calendarStatus || (c.grievance || "").trim())
+    );
+
+    if (markedColleges.length === 0) {
+      errors.push("Please mark at least one college before submitting.");
     }
 
+    // Only validate remarks for colleges marked as not_completed
     draftClients.forEach((c, idx) => {
-      if (!c.status) {
-        invalidActivities.add(idx);
-        errors.push(`Select Activity status (Completed or Not Completed) for "${c.name}".`);
-      } else if (c.status === "not_completed" && !c.remarks.trim()) {
+      if (c.status === "not_completed" && !c.remarks.trim()) {
         invalidActivities.add(idx);
         errors.push(`Add Activity remarks for "${c.name}" because it is marked Not Completed.`);
       }
 
-      if (!c.calendarStatus) {
-        invalidCalendar.add(idx);
-        errors.push(`Select Calendar status (Completed or Not Completed) for "${c.name}".`);
-      } else if (c.calendarStatus === "not_completed" && !c.calendarRemarks.trim()) {
+      if (c.calendarStatus === "not_completed" && !c.calendarRemarks.trim()) {
         invalidCalendar.add(idx);
         errors.push(`Add Calendar remarks for "${c.name}" because it is marked Not Completed.`);
       }
@@ -1174,11 +1159,11 @@
       id: "r-" + Date.now(),
       facultyId: user.id,
       date,
-      clients: draftClients.map((c) => ({
+      clients: markedColleges.map((c) => ({
         name: c.name,
-        status: c.status,
+        status: c.status || "",
         remarks: c.status === "not_completed" ? c.remarks.trim() : "",
-        calendarStatus: c.calendarStatus,
+        calendarStatus: c.calendarStatus || "",
         calendarRemarks: c.calendarStatus === "not_completed" ? c.calendarRemarks.trim() : "",
         grievance: (c.grievance || "").trim()
       })),
@@ -1190,6 +1175,14 @@
     );
     if (existingIdx >= 0) {
       payload.id = state.reports[existingIdx].id;
+      const prevClients = state.reports[existingIdx].clients || [];
+      const mergedClients = [...payload.clients];
+      prevClients.forEach((prev) => {
+        if (!mergedClients.some((m) => m.name.toLowerCase() === prev.name.toLowerCase())) {
+          mergedClients.push(prev);
+        }
+      });
+      payload.clients = mergedClients;
       state.reports[existingIdx] = payload;
     } else {
       state.reports.push(payload);
@@ -1197,6 +1190,7 @@
 
     saveState(state);
     renderFacultyHistory(user);
+    renderFacultyCompletionDashboard();
     showToast(`Report for ${date} saved locally.`);
 
     sheetPost({
