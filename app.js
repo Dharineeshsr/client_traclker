@@ -751,11 +751,29 @@
     const collegeIncomplete = items.filter(
       (i) => i.activityStatus === "not_completed" || i.calendarStatus === "not_completed"
     ).length;
+    const incompleteColleges = items.filter(
+      (i) => i.activityStatus === "not_completed" || i.calendarStatus === "not_completed"
+    );
     const collegeNotMarked = total - collegeDone - collegeIncomplete;
     const collegePct = total ? Math.round((collegeDone / total) * 100) : 0;
     const circumference = 251.327;
     const dashOffset = (circumference * (1 - collegePct / 100)).toFixed(1);
     const strokeColor = collegePct === 100 ? "#16a34a" : collegePct > 0 ? "#2563eb" : "#94a3b8";
+
+    const incompleteListHtml = incompleteColleges.length
+      ? incompleteColleges
+          .map((col) => {
+            const reasons = [];
+            if (col.activityStatus === "not_completed") reasons.push("Activity: " + (col.activityRemarks || "Not Done"));
+            if (col.calendarStatus === "not_completed") reasons.push("Calendar: " + (col.calendarRemarks || "Not Done"));
+            return `
+            <li class="incomplete-college-item">
+              <strong>${escapeHtml(col.name)}</strong>
+              <span class="muted" style="font-size:0.75rem;">${escapeHtml(reasons.join(" | "))}</span>
+            </li>`;
+          })
+          .join("")
+      : `<li class="small-text muted">No incomplete colleges.</li>`;
 
     const summaryHtml = `
       <div class="progress-summary-grid">
@@ -779,13 +797,26 @@
               <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${collegePct}%</text>
               <text x="50" y="64" text-anchor="middle" font-size="10" font-weight="600" fill="var(--muted)">${collegeDone}/${total}</text>
             </svg>
-            <div class="circular-info">
+            <div class="circular-info" style="flex:1;">
               <strong style="font-size:0.95rem;">College Completion</strong>
               <span class="muted small-text">${collegeDone} of ${total} colleges fully completed</span>
-              <div class="progress-meta" style="margin-top:0.35rem;">
+              <div class="progress-meta" style="margin-top:0.35rem;align-items:center;">
                 <span class="badge badge-success">${collegeDone} Completed</span>
-                <span class="badge badge-danger">${collegeIncomplete} Incomplete</span>
+                <span
+                  class="badge badge-danger ${incompleteColleges.length ? "badge-interactive" : ""}"
+                  data-toggle-incomplete
+                  title="${incompleteColleges.length ? "Click down arrow to view incomplete colleges" : ""}"
+                >
+                  ${collegeIncomplete} Incomplete ${incompleteColleges.length ? '<span class="badge-arrow">▼</span>' : ""}
+                </span>
                 <span class="badge badge-neutral">${collegeNotMarked} Not Marked</span>
+              </div>
+              <div class="incomplete-colleges-dropdown hidden" data-incomplete-popup>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <strong style="font-size:0.8rem;color:var(--danger);">Incomplete Colleges:</strong>
+                  <span class="muted" style="font-size:0.75rem;">(${incompleteColleges.length})</span>
+                </div>
+                <ul class="incomplete-colleges-list">${incompleteListHtml}</ul>
               </div>
             </div>
           </div>
@@ -865,6 +896,17 @@
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>`;
+
+    const toggleBtn = container.querySelector("[data-toggle-incomplete]");
+    const dropdown = container.querySelector("[data-incomplete-popup]");
+    const arrow = container.querySelector(".badge-arrow");
+    if (toggleBtn && dropdown && incompleteColleges.length) {
+      toggleBtn.addEventListener("click", () => {
+        const isHidden = dropdown.classList.contains("hidden");
+        dropdown.classList.toggle("hidden", !isHidden);
+        if (arrow) arrow.classList.toggle("open", isHidden);
+      });
+    }
   }
 
   function renderAdminCompletionDashboard() {
