@@ -22,8 +22,12 @@ const SUBMISSIONS_HEADERS = [
   "Faculty Name",
   "Department",
   "Client Name",
-  "Activity Status",
-  "Activity Remarks",
+  "Activity 1st Year",
+  "Activity 1st Remarks",
+  "Activity 2nd Year",
+  "Activity 2nd Remarks",
+  "Activity 3rd Year",
+  "Activity 3rd Remarks",
   "Calendar Status",
   "Calendar Remarks",
   "Grievance",
@@ -122,17 +126,59 @@ function readAllData_() {
         facultyId: facultyId,
         date: dateVal,
         clients: [],
-        updatedAt: row[11] instanceof Date ? row[11].toISOString() : String(row[11] || "")
+        updatedAt: row[15] instanceof Date ? row[15].toISOString() : String(row[15] || row[11] || "")
+      };
+    }
+
+    // Support both 16-column format (with 1st, 2nd, 3rd year) and legacy 12-column format
+    const has16Cols = row.length >= 16 && (row[6] !== undefined && row[8] !== undefined && row[10] !== undefined);
+    let actYears = null;
+    let status = "";
+    let remarks = "";
+    let calStatus = "";
+    let calRemarks = "";
+    let grievance = "";
+
+    if (has16Cols && (row[6] || row[8] || row[10])) {
+      const y1St = String(row[6] || "") === "Not Completed" ? "not_completed" : String(row[6] || "") === "Completed" ? "completed" : "";
+      const y2St = String(row[8] || "") === "Not Completed" ? "not_completed" : String(row[8] || "") === "Completed" ? "completed" : "";
+      const y3St = String(row[10] || "") === "Not Completed" ? "not_completed" : String(row[10] || "") === "Completed" ? "completed" : "";
+      actYears = {
+        y1: { status: y1St, remarks: String(row[7] || "") },
+        y2: { status: y2St, remarks: String(row[9] || "") },
+        y3: { status: y3St, remarks: String(row[11] || "") }
+      };
+      if (y1St === "not_completed" || y2St === "not_completed" || y3St === "not_completed") {
+        status = "not_completed";
+      } else if (y1St === "completed" && y2St === "completed" && y3St === "completed") {
+        status = "completed";
+      } else if (y1St === "completed" || y2St === "completed" || y3St === "completed") {
+        status = "completed";
+      }
+      calStatus = String(row[12] || "") === "Not Completed" ? "not_completed" : String(row[12] || "") === "Completed" ? "completed" : "";
+      calRemarks = String(row[13] || "");
+      grievance = String(row[14] || "");
+    } else {
+      status = String(row[6] || "") === "Not Completed" ? "not_completed" : String(row[6] || "") === "Completed" ? "completed" : "";
+      remarks = String(row[7] || "");
+      calStatus = String(row[8] || "") === "Not Completed" ? "not_completed" : String(row[8] || "") === "Completed" ? "completed" : "";
+      calRemarks = String(row[9] || "");
+      grievance = String(row[10] || "");
+      actYears = {
+        y1: { status: status, remarks: remarks },
+        y2: { status: status, remarks: remarks },
+        y3: { status: status, remarks: remarks }
       };
     }
 
     grouped[key].clients.push({
       name: clientName,
-      status: String(row[6] || "") === "Not Completed" ? "not_completed" : "completed",
-      remarks: String(row[7] || ""),
-      calendarStatus: String(row[8] || "") === "Not Completed" ? "not_completed" : "completed",
-      calendarRemarks: String(row[9] || ""),
-      grievance: String(row[10] || "")
+      status: status,
+      remarks: remarks,
+      activityYears: actYears,
+      calendarStatus: calStatus,
+      calendarRemarks: calRemarks,
+      grievance: grievance
     });
   }
 
@@ -241,6 +287,10 @@ function doPost(e) {
       });
 
       const rowsToAdd = r.clients.map(function (c) {
+        const y1 = (c.activityYears && c.activityYears.y1) || {};
+        const y2 = (c.activityYears && c.activityYears.y2) || {};
+        const y3 = (c.activityYears && c.activityYears.y3) || {};
+
         return [
           r.id,
           r.date,
@@ -248,8 +298,12 @@ function doPost(e) {
           fac.name || "",
           fac.department || "",
           c.name,
-          formatStatusLabel_(c.status),
-          c.remarks || "",
+          formatStatusLabel_(y1.status || c.status),
+          y1.remarks || c.remarks || "",
+          formatStatusLabel_(y2.status || c.status),
+          y2.remarks || c.remarks || "",
+          formatStatusLabel_(y3.status || c.status),
+          y3.remarks || c.remarks || "",
           formatStatusLabel_(c.calendarStatus),
           c.calendarRemarks || "",
           c.grievance || "",

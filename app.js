@@ -7,6 +7,11 @@
   const DEFAULT_SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbzth_kW3cN2G8ksTdOJQAENDYrP2p6OV1XSLqZZIEv97wVfQYwk5P_AmtnnPZwyLJ0c/exec";
   const DEFAULT_CLIENTS = ["NPR", "AVS", "SINCET", "IFET", "IG", "ARJUN"];
+  const ACTIVITY_YEARS = [
+    { key: "y1", label: "1st Year" },
+    { key: "y2", label: "2nd Year" },
+    { key: "y3", label: "3rd Year" }
+  ];
 
   function todayISO() {
     const now = new Date();
@@ -52,12 +57,84 @@
           facultyId: "u-fac-1",
           date: today,
           clients: [
-            { name: "NPR", status: "completed", remarks: "", calendarStatus: "completed", calendarRemarks: "", grievance: "" },
-            { name: "AVS", status: "not_completed", remarks: "Awaiting client sign-off on weekly deliverables.", calendarStatus: "completed", calendarRemarks: "", grievance: "Need updated lab schedule shared before Friday." },
-            { name: "SINCET", status: "completed", remarks: "", calendarStatus: "completed", calendarRemarks: "", grievance: "" },
-            { name: "IFET", status: "completed", remarks: "", calendarStatus: "not_completed", calendarRemarks: "Pending calendar invite confirmation.", grievance: "" },
-            { name: "IG", status: "completed", remarks: "", calendarStatus: "completed", calendarRemarks: "", grievance: "" },
-            { name: "ARJUN", status: "completed", remarks: "", calendarStatus: "completed", calendarRemarks: "", grievance: "" }
+            {
+              name: "NPR",
+              status: "completed",
+              remarks: "",
+              activityYears: {
+                y1: { status: "completed", remarks: "" },
+                y2: { status: "completed", remarks: "" },
+                y3: { status: "completed", remarks: "" }
+              },
+              calendarStatus: "completed",
+              calendarRemarks: "",
+              grievance: ""
+            },
+            {
+              name: "AVS",
+              status: "not_completed",
+              remarks: "Awaiting client sign-off on weekly deliverables.",
+              activityYears: {
+                y1: { status: "completed", remarks: "" },
+                y2: { status: "not_completed", remarks: "Awaiting client sign-off on 2nd year deliverables." },
+                y3: { status: "completed", remarks: "" }
+              },
+              calendarStatus: "completed",
+              calendarRemarks: "",
+              grievance: "Need updated lab schedule shared before Friday."
+            },
+            {
+              name: "SINCET",
+              status: "completed",
+              remarks: "",
+              activityYears: {
+                y1: { status: "completed", remarks: "" },
+                y2: { status: "completed", remarks: "" },
+                y3: { status: "completed", remarks: "" }
+              },
+              calendarStatus: "completed",
+              calendarRemarks: "",
+              grievance: ""
+            },
+            {
+              name: "IFET",
+              status: "completed",
+              remarks: "",
+              activityYears: {
+                y1: { status: "completed", remarks: "" },
+                y2: { status: "completed", remarks: "" },
+                y3: { status: "completed", remarks: "" }
+              },
+              calendarStatus: "not_completed",
+              calendarRemarks: "Pending calendar invite confirmation.",
+              grievance: ""
+            },
+            {
+              name: "IG",
+              status: "completed",
+              remarks: "",
+              activityYears: {
+                y1: { status: "completed", remarks: "" },
+                y2: { status: "completed", remarks: "" },
+                y3: { status: "completed", remarks: "" }
+              },
+              calendarStatus: "completed",
+              calendarRemarks: "",
+              grievance: ""
+            },
+            {
+              name: "ARJUN",
+              status: "completed",
+              remarks: "",
+              activityYears: {
+                y1: { status: "completed", remarks: "" },
+                y2: { status: "completed", remarks: "" },
+                y3: { status: "completed", remarks: "" }
+              },
+              calendarStatus: "completed",
+              calendarRemarks: "",
+              grievance: ""
+            }
           ],
           updatedAt: new Date().toISOString()
         }
@@ -180,9 +257,10 @@
   }
 
   function hasIncomplete(report) {
-    return report.clients.some(
-      (c) => c.status !== "completed" || c.calendarStatus !== "completed"
-    );
+    return report.clients.some((c) => {
+      const actSummary = computeActivitySummary(c.activityYears, c.status, c.remarks);
+      return actSummary.status !== "completed" || c.calendarStatus !== "completed";
+    });
   }
 
   function hasGrievance(report) {
@@ -696,6 +774,46 @@
     });
   }
 
+  function computeActivitySummary(activityYears, legacyStatus, legacyRemarks) {
+    if (!activityYears) {
+      const s = legacyStatus || "";
+      const r = legacyRemarks || "";
+      return {
+        status: s,
+        isCompleted: s === "completed",
+        isIncomplete: s === "not_completed",
+        isNotMarked: !s,
+        years: {
+          y1: { status: s, remarks: r },
+          y2: { status: s, remarks: r },
+          y3: { status: s, remarks: r }
+        }
+      };
+    }
+
+    const statuses = ACTIVITY_YEARS.map((y) => (activityYears[y.key] && activityYears[y.key].status) || "");
+    const hasNotCompleted = statuses.some((st) => st === "not_completed");
+    const allCompleted = statuses.every((st) => st === "completed");
+    const allUnmarked = statuses.every((st) => !st);
+
+    let overallStatus = "not_marked";
+    if (hasNotCompleted) {
+      overallStatus = "not_completed";
+    } else if (allCompleted) {
+      overallStatus = "completed";
+    } else if (!allUnmarked && statuses.some((st) => st === "completed")) {
+      overallStatus = "completed";
+    }
+
+    return {
+      status: overallStatus,
+      isCompleted: overallStatus === "completed",
+      isIncomplete: overallStatus === "not_completed",
+      isNotMarked: overallStatus === "not_marked",
+      years: activityYears
+    };
+  }
+
   function getCollegeStatusForDate(collegeName, targetDate) {
     const reportsForDate = state.reports
       .filter((r) => r.date === targetDate)
@@ -706,11 +824,13 @@
       const found = report.clients.find(
         (c) =>
           c.name.toLowerCase() === collegeName.toLowerCase() &&
-          (c.status || c.calendarStatus || (c.grievance || "").trim())
+          (c.status || c.activityYears || c.calendarStatus || (c.grievance || "").trim())
       );
       if (found) {
+        const actSummary = computeActivitySummary(found.activityYears, found.status, found.remarks);
         return {
-          activityStatus: found.status || "not_marked",
+          activityStatus: actSummary.status,
+          activityYears: actSummary.years,
           activityRemarks: found.remarks || "",
           calendarStatus: found.calendarStatus || "not_marked",
           calendarRemarks: found.calendarRemarks || "",
@@ -721,6 +841,7 @@
 
     return {
       activityStatus: "not_marked",
+      activityYears: null,
       activityRemarks: "",
       calendarStatus: "not_marked",
       calendarRemarks: "",
@@ -764,8 +885,22 @@
       ? incompleteColleges
           .map((col) => {
             const reasons = [];
-            if (col.activityStatus === "not_completed") reasons.push("Activity: " + (col.activityRemarks || "Not Done"));
-            if (col.calendarStatus === "not_completed") reasons.push("Calendar: " + (col.calendarRemarks || "Not Done"));
+            if (col.activityStatus === "not_completed") {
+              if (col.activityYears) {
+                const yearNotes = ACTIVITY_YEARS.filter(
+                  (y) => col.activityYears[y.key] && col.activityYears[y.key].status === "not_completed"
+                ).map((y) => {
+                  const rem = col.activityYears[y.key].remarks;
+                  return `${y.label}: ${rem || "Not Done"}`;
+                });
+                reasons.push("Activity (" + (yearNotes.join(", ") || "Incomplete") + ")");
+              } else {
+                reasons.push("Activity: " + (col.activityRemarks || "Not Done"));
+              }
+            }
+            if (col.calendarStatus === "not_completed") {
+              reasons.push("Calendar: " + (col.calendarRemarks || "Not Done"));
+            }
             return `
             <li class="incomplete-college-item">
               <strong>${escapeHtml(col.name)}</strong>
@@ -850,7 +985,24 @@
     const rowsHtml = items
       .map((item) => {
         let actBadge = `<span class="badge badge-neutral">Not Marked</span>`;
-        if (item.activityStatus === "completed") {
+        if (item.activityYears) {
+          const yearRows = ACTIVITY_YEARS.map((y) => {
+            const yr = item.activityYears[y.key] || { status: "", remarks: "" };
+            let yrBadge = `<span class="badge badge-neutral">Not Marked</span>`;
+            if (yr.status === "completed") {
+              yrBadge = `<span class="badge badge-success">Completed</span>`;
+            } else if (yr.status === "not_completed") {
+              yrBadge = `<span class="badge badge-danger">Not Completed</span>` +
+                (yr.remarks ? `<div class="remark-line">${escapeHtml(yr.remarks)}</div>` : "");
+            }
+            return `
+              <div class="activity-year-dash-row">
+                <span class="activity-year-dash-label">${escapeHtml(y.label)}:</span>
+                <div>${yrBadge}</div>
+              </div>`;
+          }).join("");
+          actBadge = `<div class="activity-dashboard-pills">${yearRows}</div>`;
+        } else if (item.activityStatus === "completed") {
           actBadge = `<span class="badge badge-success">Completed</span>`;
         } else if (item.activityStatus === "not_completed") {
           actBadge = `<span class="badge badge-danger">Not Completed</span>` +
@@ -1082,6 +1234,41 @@
   function renderReportClientRows(clients, statusKey, remarksKey) {
     return clients
       .map((c) => {
+        if (statusKey === "activityYears") {
+          let innerHtml = "";
+          if (c.activityYears) {
+            const yrItems = ACTIVITY_YEARS.map((y) => {
+              const yr = c.activityYears[y.key] || { status: "", remarks: "" };
+              const ok = yr.status === "completed";
+              const notDone = yr.status === "not_completed";
+              const label = ok ? "Completed" : notDone ? "Not Completed" : "Not Marked";
+              const badgeClass = ok ? "badge-success" : notDone ? "badge-danger" : "badge-neutral";
+              return `
+                <div style="display:flex;justify-content:space-between;gap:0.4rem;align-items:center;margin-top:0.25rem;">
+                  <span class="muted small-text">${escapeHtml(y.label)}:</span>
+                  <span class="badge ${badgeClass}">${label}</span>
+                </div>
+                ${notDone && yr.remarks ? `<div class="remark-line" style="font-size:0.75rem;">${escapeHtml(yr.remarks)}</div>` : ""}`;
+            }).join("");
+            innerHtml = `<div style="margin-top:0.25rem;">${yrItems}</div>`;
+          } else {
+            const ok = c.status === "completed";
+            innerHtml = `
+              <div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:center;">
+                <span class="badge ${ok ? "badge-success" : "badge-danger"}">
+                  ${ok ? "Completed" : "Not Completed"}
+                </span>
+              </div>
+              ${!ok && c.remarks ? `<div class="remark-line">Remark: ${escapeHtml(c.remarks)}</div>` : ""}`;
+          }
+
+          return `
+          <li>
+            <strong style="font-size:0.88rem;">${escapeHtml(c.name)}</strong>
+            ${innerHtml}
+          </li>`;
+        }
+
         const ok = c[statusKey] === "completed";
         const remark = c[remarksKey];
         return `
@@ -1104,7 +1291,7 @@
     const incomplete = hasIncomplete(report);
     const grievanceFlag = hasGrievance(report);
 
-    const activitiesHtml = renderReportClientRows(report.clients, "status", "remarks");
+    const activitiesHtml = renderReportClientRows(report.clients, "activityYears", "");
     const calendarHtml = renderReportClientRows(report.clients, "calendarStatus", "calendarRemarks");
     const grievanceItems = report.clients.filter((c) => (c.grievance || "").trim().length > 0);
     const grievancesHtml = grievanceItems.length
@@ -1195,10 +1382,35 @@
       const match = existing
         ? existing.clients.find((c) => c.name.toLowerCase() === name.toLowerCase())
         : null;
+
+      const actYears = {
+        y1: { status: "", remarks: "" },
+        y2: { status: "", remarks: "" },
+        y3: { status: "", remarks: "" }
+      };
+
+      if (match && match.activityYears) {
+        ACTIVITY_YEARS.forEach((y) => {
+          if (match.activityYears[y.key]) {
+            actYears[y.key] = {
+              status: match.activityYears[y.key].status || "",
+              remarks: match.activityYears[y.key].remarks || ""
+            };
+          }
+        });
+      } else if (match && match.status) {
+        // Fallback for legacy single status
+        ACTIVITY_YEARS.forEach((y) => {
+          actYears[y.key] = {
+            status: match.status,
+            remarks: match.remarks || ""
+          };
+        });
+      }
+
       return {
         name,
-        status: match ? match.status : "",
-        remarks: match ? match.remarks : "",
+        activityYears: actYears,
         calendarStatus: match ? match.calendarStatus || "" : "",
         calendarRemarks: match ? match.calendarRemarks || "" : "",
         grievance: match ? match.grievance || "" : ""
@@ -1209,13 +1421,7 @@
   }
 
   function renderAllFacultyTables(invalidActivities = new Set(), invalidCalendar = new Set()) {
-    renderStatusTable({
-      container: el.clientActivitiesList,
-      prefix: "activity",
-      statusKey: "status",
-      remarksKey: "remarks",
-      invalidSet: invalidActivities
-    });
+    renderActivityYearsTable(invalidActivities);
     renderStatusTable({
       container: el.calendarTableList,
       prefix: "calendar",
@@ -1227,20 +1433,132 @@
     renderFacultyCompletionDashboard();
   }
 
+  function renderActivityYearsTable(invalidActivities = new Set()) {
+    if (!el.clientActivitiesList) return;
+    if (draftClients.length === 0) {
+      el.clientActivitiesList.innerHTML = `<div class="empty-state">No clients assigned by Admin yet.</div>`;
+      return;
+    }
+
+    const rowsHtml = draftClients
+      .map((client, idx) => {
+        const isInvalid = invalidActivities.has(idx);
+
+        const yearBlocksHtml = ACTIVITY_YEARS.map((y) => {
+          const yrData = client.activityYears[y.key] || { status: "", remarks: "" };
+          const showRemarks = yrData.status === "not_completed";
+          return `
+            <div class="activity-year-box">
+              <div class="activity-year-header">
+                <span class="activity-year-label">${escapeHtml(y.label)}</span>
+                <div class="status-group">
+                  <label class="choice-card">
+                    <input type="radio" name="actYearStatus-${idx}-${y.key}" value="completed" ${
+                      yrData.status === "completed" ? "checked" : ""
+                    } />
+                    <span>Completed</span>
+                  </label>
+                  <label class="choice-card">
+                    <input type="radio" name="actYearStatus-${idx}-${y.key}" value="not_completed" ${
+                      yrData.status === "not_completed" ? "checked" : ""
+                    } />
+                    <span>Not Completed</span>
+                  </label>
+                  <label class="choice-card">
+                    <input type="radio" name="actYearStatus-${idx}-${y.key}" value="" ${
+                      !yrData.status ? "checked" : ""
+                    } />
+                    <span class="muted">None / Skip</span>
+                  </label>
+                </div>
+              </div>
+              <div data-act-year-remarks-wrap="${idx}-${y.key}" class="${showRemarks ? "" : "hidden"}" style="margin-top:0.35rem;">
+                <input
+                  id="act-year-remark-${idx}-${y.key}"
+                  type="text"
+                  placeholder="Remarks for ${escapeHtml(client.name)} (${escapeHtml(y.label)}) *"
+                  value="${escapeHtml(yrData.remarks || "")}"
+                />
+              </div>
+            </div>`;
+        }).join("");
+
+        return `
+        <tr class="${isInvalid ? "invalid" : ""}" data-activity-row="${idx}">
+          <td class="col-client" style="vertical-align:top;padding-top:1rem;">
+            <strong>${escapeHtml(client.name)}</strong>
+          </td>
+          <td>
+            <div class="activity-years-stack">
+              ${yearBlocksHtml}
+            </div>
+          </td>
+        </tr>`;
+      })
+      .join("");
+
+    el.clientActivitiesList.innerHTML = `
+      <table class="checklist-table">
+        <thead>
+          <tr>
+            <th style="width:160px;">Client</th>
+            <th>Year-wise Activity Status (1st, 2nd &amp; 3rd Year)</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+
+    draftClients.forEach((_c, idx) => {
+      const row = el.clientActivitiesList.querySelector(`[data-activity-row="${idx}"]`);
+      ACTIVITY_YEARS.forEach((y) => {
+        const radios = el.clientActivitiesList.querySelectorAll(`input[name="actYearStatus-${idx}-${y.key}"]`);
+        const remarkWrap = el.clientActivitiesList.querySelector(`[data-act-year-remarks-wrap="${idx}-${y.key}"]`);
+        const remarkInput = el.clientActivitiesList.querySelector(`#act-year-remark-${idx}-${y.key}`);
+
+        radios.forEach((radio) => {
+          radio.addEventListener("change", () => {
+            draftClients[idx].activityYears[y.key].status = radio.value;
+            const notDone = radio.value === "not_completed";
+            if (remarkWrap) remarkWrap.classList.toggle("hidden", !notDone);
+            if (!notDone) {
+              draftClients[idx].activityYears[y.key].remarks = "";
+              if (remarkInput) remarkInput.value = "";
+            }
+            if (row) row.classList.remove("invalid");
+            renderFacultyCompletionDashboard();
+          });
+        });
+
+        if (remarkInput) {
+          remarkInput.addEventListener("input", () => {
+            draftClients[idx].activityYears[y.key].remarks = remarkInput.value;
+            if (remarkInput.value.trim() && row) {
+              row.classList.remove("invalid");
+            }
+          });
+        }
+      });
+    });
+  }
+
   function renderFacultyCompletionDashboard() {
     const targetDate = el.reportDate.value || todayISO();
     const colleges = getAllColleges();
     const items = colleges.map((collegeName) => {
       const draft = draftClients.find((c) => c.name.toLowerCase() === collegeName.toLowerCase());
-      if (draft && (draft.status || draft.calendarStatus || (draft.grievance || "").trim())) {
-        return {
-          name: collegeName,
-          activityStatus: draft.status || "not_marked",
-          activityRemarks: draft.remarks || "",
-          calendarStatus: draft.calendarStatus || "not_marked",
-          calendarRemarks: draft.calendarRemarks || "",
-          grievance: (draft.grievance || "").trim()
-        };
+      if (draft) {
+        const actSummary = computeActivitySummary(draft.activityYears);
+        if (!actSummary.isNotMarked || draft.calendarStatus || (draft.grievance || "").trim()) {
+          return {
+            name: collegeName,
+            activityStatus: actSummary.status,
+            activityYears: draft.activityYears,
+            activityRemarks: "",
+            calendarStatus: draft.calendarStatus || "not_marked",
+            calendarRemarks: draft.calendarRemarks || "",
+            grievance: (draft.grievance || "").trim()
+          };
+        }
       }
       return {
         name: collegeName,
@@ -1398,9 +1716,10 @@
     const errors = [];
 
     // Find colleges where faculty actually selected a status or typed a grievance
-    const markedColleges = draftClients.filter((c) =>
-      Boolean(c.status || c.calendarStatus || (c.grievance || "").trim())
-    );
+    const markedColleges = draftClients.filter((c) => {
+      const actSummary = computeActivitySummary(c.activityYears);
+      return !actSummary.isNotMarked || Boolean(c.calendarStatus) || Boolean((c.grievance || "").trim());
+    });
 
     if (markedColleges.length === 0) {
       errors.push("Please mark at least one college before submitting.");
@@ -1408,10 +1727,13 @@
 
     // Only validate remarks for colleges marked as not_completed
     draftClients.forEach((c, idx) => {
-      if (c.status === "not_completed" && !c.remarks.trim()) {
-        invalidActivities.add(idx);
-        errors.push(`Add Activity remarks for "${c.name}" because it is marked Not Completed.`);
-      }
+      ACTIVITY_YEARS.forEach((y) => {
+        const yr = c.activityYears && c.activityYears[y.key];
+        if (yr && yr.status === "not_completed" && !yr.remarks.trim()) {
+          invalidActivities.add(idx);
+          errors.push(`Add Activity remarks for "${c.name}" (${y.label}) because it is marked Not Completed.`);
+        }
+      });
 
       if (c.calendarStatus === "not_completed" && !c.calendarRemarks.trim()) {
         invalidCalendar.add(idx);
@@ -1432,14 +1754,38 @@
       id: "r-" + Date.now(),
       facultyId: user.id,
       date,
-      clients: markedColleges.map((c) => ({
-        name: c.name,
-        status: c.status || "",
-        remarks: c.status === "not_completed" ? c.remarks.trim() : "",
-        calendarStatus: c.calendarStatus || "",
-        calendarRemarks: c.calendarStatus === "not_completed" ? c.calendarRemarks.trim() : "",
-        grievance: (c.grievance || "").trim()
-      })),
+      clients: markedColleges.map((c) => {
+        const actSummary = computeActivitySummary(c.activityYears);
+        const firstIncompleteYear = ACTIVITY_YEARS.find(
+          (y) => c.activityYears && c.activityYears[y.key] && c.activityYears[y.key].status === "not_completed"
+        );
+        const legacyRemark = firstIncompleteYear
+          ? `${firstIncompleteYear.label}: ${c.activityYears[firstIncompleteYear.key].remarks.trim()}`
+          : "";
+
+        return {
+          name: c.name,
+          status: actSummary.status === "not_marked" ? "" : actSummary.status,
+          remarks: legacyRemark,
+          activityYears: {
+            y1: {
+              status: (c.activityYears && c.activityYears.y1 && c.activityYears.y1.status) || "",
+              remarks: (c.activityYears && c.activityYears.y1 && c.activityYears.y1.remarks.trim()) || ""
+            },
+            y2: {
+              status: (c.activityYears && c.activityYears.y2 && c.activityYears.y2.status) || "",
+              remarks: (c.activityYears && c.activityYears.y2 && c.activityYears.y2.remarks.trim()) || ""
+            },
+            y3: {
+              status: (c.activityYears && c.activityYears.y3 && c.activityYears.y3.status) || "",
+              remarks: (c.activityYears && c.activityYears.y3 && c.activityYears.y3.remarks.trim()) || ""
+            }
+          },
+          calendarStatus: c.calendarStatus || "",
+          calendarRemarks: c.calendarStatus === "not_completed" ? c.calendarRemarks.trim() : "",
+          grievance: (c.grievance || "").trim()
+        };
+      }),
       updatedAt: new Date().toISOString()
     };
 

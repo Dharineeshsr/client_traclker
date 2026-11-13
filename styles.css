@@ -565,11 +565,6 @@ textarea:focus {
   padding: 0.36rem 0.7rem;
   font-size: 0.84rem;
 }
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
 
 .radio-row {
   display: flex;
@@ -742,6 +737,54 @@ textarea:focus {
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--primary);
+}
+
+.activity-year-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface-alt);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.activity-year-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.activity-year-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.activity-years-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.activity-dashboard-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.activity-year-dash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+}
+
+.activity-year-dash-label {
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 55px;
 }
 
 .progress-track {
