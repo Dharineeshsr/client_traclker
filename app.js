@@ -101,7 +101,6 @@
     loginUsername: document.getElementById("login-username"),
     loginPassword: document.getElementById("login-password"),
     loginError: document.getElementById("login-error"),
-    demoAccounts: document.getElementById("demo-accounts"),
     appShell: document.getElementById("app-shell"),
     userRoleBadge: document.getElementById("user-role-badge"),
     sheetStatusPill: document.getElementById("sheet-status-pill"),
@@ -273,29 +272,33 @@
   }
 
   // ---- AUTH ----
-  function renderDemoChips() {
-    el.demoAccounts.innerHTML = "";
-    state.users.forEach((user) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "demo-chip";
-      btn.textContent = `${user.role === "admin" ? "Admin" : "Faculty"}: ${user.username}`;
-      btn.addEventListener("click", () => {
-        el.loginUsername.value = user.username;
-        el.loginPassword.value = user.password;
-        el.loginError.classList.add("hidden");
-      });
-      el.demoAccounts.appendChild(btn);
-    });
-  }
-
-  el.loginForm.addEventListener("submit", (e) => {
+  el.loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const submitBtn = el.loginForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.textContent : "Sign In";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Verifying...";
+    }
+
     const username = el.loginUsername.value.trim().toLowerCase();
     const password = el.loginPassword.value;
-    const matched = state.users.find(
+    let matched = state.users.find(
       (u) => u.username.toLowerCase() === username && u.password === password
     );
+
+    // If credentials aren't found locally, fetch latest users from Google Sheet
+    if (!matched && getScriptUrl()) {
+      await syncFromSheet({ quiet: true });
+      matched = state.users.find(
+        (u) => u.username.toLowerCase() === username && u.password === password
+      );
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
 
     if (!matched) {
       el.loginError.textContent = "Invalid username or password.";
@@ -329,7 +332,6 @@
     if (!user) {
       el.loginView.classList.remove("hidden");
       el.appShell.classList.add("hidden");
-      renderDemoChips();
       return;
     }
 
