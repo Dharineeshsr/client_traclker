@@ -361,9 +361,6 @@
     if (el.adminSectionDropdown) {
       el.adminSectionDropdown.value = isNone ? "none" : target;
     }
-    el.tabBtns.forEach((b) => {
-      b.classList.toggle("active", !isNone && b.dataset.tab === target);
-    });
     el.reportsTab.classList.toggle("hidden", isNone || target !== "reports-tab");
     el.facultiesTab.classList.toggle("hidden", isNone || target !== "faculties-tab");
     el.sheetTab.classList.toggle("hidden", isNone || target !== "sheet-tab");
@@ -374,15 +371,6 @@
       setAdminVisibleSection(e.target.value);
     });
   }
-
-  el.tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const target = btn.dataset.tab;
-      const targetPanel = document.getElementById(target);
-      const isCurrentlyOpen = targetPanel && !targetPanel.classList.contains("hidden");
-      setAdminVisibleSection(isCurrentlyOpen ? "none" : target);
-    });
-  });
 
   el.sheetConfigForm.addEventListener("submit", async (e) => {
     e.preventDefault();
