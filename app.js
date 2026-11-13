@@ -558,8 +558,53 @@
     const calNotDone = items.filter((i) => i.calendarStatus === "not_completed").length;
     const calNotMarked = total - calDone - calNotDone;
 
+    // Overall college completion (both Activity and Calendar completed)
+    const collegeDone = items.filter(
+      (i) => i.activityStatus === "completed" && i.calendarStatus === "completed"
+    ).length;
+    const collegeIncomplete = items.filter(
+      (i) => i.activityStatus === "not_completed" || i.calendarStatus === "not_completed"
+    ).length;
+    const collegeNotMarked = total - collegeDone - collegeIncomplete;
+    const collegePct = total ? Math.round((collegeDone / total) * 100) : 0;
+    const circumference = 251.327;
+    const dashOffset = (circumference * (1 - collegePct / 100)).toFixed(1);
+    const strokeColor = collegePct === 100 ? "#16a34a" : collegePct > 0 ? "#2563eb" : "#94a3b8";
+
     const summaryHtml = `
       <div class="progress-summary-grid">
+        <div class="progress-card circular-summary-card">
+          <div class="circular-chart-wrap">
+            <svg width="86" height="86" viewBox="0 0 100 100" class="circular-chart" aria-label="${collegePct}% college completion">
+              <circle cx="50" cy="50" r="40" stroke="#e2e8f0" stroke-width="10" fill="none" />
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                stroke="${strokeColor}"
+                stroke-width="10"
+                stroke-linecap="round"
+                fill="none"
+                stroke-dasharray="251.327"
+                stroke-dashoffset="${dashOffset}"
+                transform="rotate(-90 50 50)"
+                style="transition: stroke-dashoffset 0.4s ease;"
+              />
+              <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="700" fill="var(--text)">${collegePct}%</text>
+              <text x="50" y="64" text-anchor="middle" font-size="10" font-weight="600" fill="var(--muted)">${collegeDone}/${total}</text>
+            </svg>
+            <div class="circular-info">
+              <strong style="font-size:0.95rem;">College Completion</strong>
+              <span class="muted small-text">${collegeDone} of ${total} colleges fully completed</span>
+              <div class="progress-meta" style="margin-top:0.35rem;">
+                <span class="badge badge-success">${collegeDone} Completed</span>
+                <span class="badge badge-danger">${collegeIncomplete} Incomplete</span>
+                <span class="badge badge-neutral">${collegeNotMarked} Not Marked</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="progress-card">
           <div class="progress-head">
             <strong>Activities Status</strong>
@@ -603,7 +648,7 @@
             (item.calendarRemarks ? `<div class="remark-line">${escapeHtml(item.calendarRemarks)}</div>` : "");
         }
 
-        let grievanceBadge = `<span class="badge badge-neutral">No</span>`;
+        let grievanceBadge = `<span class="badge badge-neutral">Not Marked</span>`;
         if (item.grievance.length > 0) {
           grievanceBadge = `<span class="badge badge-warn">Yes</span>
             <div class="small-text" style="margin-top:0.3rem;">${escapeHtml(item.grievance)}</div>`;

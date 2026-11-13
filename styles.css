@@ -589,9 +589,37 @@ textarea:focus {
 /* Completion Dashboard */
 .progress-summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1.35fr 1fr 1fr;
   gap: 0.9rem;
   margin-bottom: 1rem;
+}
+
+.circular-summary-card {
+  display: flex;
+  align-items: center;
+}
+
+.circular-chart-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.circular-chart {
+  flex-shrink: 0;
+}
+
+.circular-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (max-width: 960px) {
+  .progress-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .progress-card {
