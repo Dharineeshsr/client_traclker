@@ -62,6 +62,7 @@
           updatedAt: new Date().toISOString()
         }
       ],
+      customClients: [...DEFAULT_CLIENTS],
       sessionUserId: null
     };
   }
@@ -115,6 +116,11 @@
     adminCompletionDashboard: document.getElementById("admin-completion-dashboard"),
     facultyCompletionDashboard: document.getElementById("faculty-completion-dashboard"),
     adminSectionDropdown: document.getElementById("admin-section-dropdown"),
+    clientsTab: document.getElementById("clients-tab"),
+    globalClientCount: document.getElementById("global-client-count"),
+    addGlobalClientForm: document.getElementById("add-global-client-form"),
+    newGlobalClientInput: document.getElementById("new-global-client-input"),
+    clientsManageTable: document.getElementById("clients-manage-table"),
     tabBtns: document.querySelectorAll(".tab-btn"),
     reportsTab: document.getElementById("reports-tab"),
     facultiesTab: document.getElementById("faculties-tab"),
@@ -361,9 +367,13 @@
     if (el.adminSectionDropdown) {
       el.adminSectionDropdown.value = isNone ? "none" : target;
     }
+    el.clientsTab.classList.toggle("hidden", isNone || target !== "clients-tab");
     el.reportsTab.classList.toggle("hidden", isNone || target !== "reports-tab");
     el.facultiesTab.classList.toggle("hidden", isNone || target !== "faculties-tab");
     el.sheetTab.classList.toggle("hidden", isNone || target !== "sheet-tab");
+    if (target === "clients-tab") {
+      renderClientsManageTable();
+    }
   }
 
   if (el.adminSectionDropdown) {
@@ -490,11 +500,15 @@
     renderFacultyFilterOptions();
     renderAdminCompletionDashboard();
     renderFacultyDirectory();
+    renderClientsManageTable();
     renderAdminReports();
   }
 
   function getAllColleges() {
-    const list = [...DEFAULT_CLIENTS];
+    if (!Array.isArray(state.customClients)) {
+      state.customClients = [...DEFAULT_CLIENTS];
+    }
+    const list = [...state.customClients];
     state.users.forEach((u) => {
       if (Array.isArray(u.clients)) {
         u.clients.forEach((c) => {
@@ -504,16 +518,182 @@
         });
       }
     });
-    state.reports.forEach((r) => {
-      if (Array.isArray(r.clients)) {
-        r.clients.forEach((c) => {
-          if (!list.some((existing) => existing.toLowerCase() === c.name.toLowerCase())) {
-            list.push(c.name);
+    return list;
+  }
+
+  function renderClientsManageTable() {
+    if (!el.clientsManageTable) return;
+    const colleges = getAllColleges();
+    if (el.globalClientCount) {
+      el.globalClientCount.textContent = `${colleges.length} Clients`;
+    }
+
+    if (colleges.length === 0) {
+      el.clientsManageTable.innerHTML = `<div class="empty-state">No clients available. Add one using the form above.</div>`;
+      return;
+    }
+
+    const rowsHtml = colleges
+      .map(
+        (college, idx) => `
+        <tr data-client-row="${idx}">
+          <td style="width:50px;color:var(--muted);">${idx + 1}</td>
+          <td>
+            <div class="client-name-display" data-name-display="${idx}" style="font-weight:600;">
+              ${escapeHtml(college)}
+            </div>
+            <div class="client-edit-form hidden" data-edit-form="${idx}" style="display:flex;gap:0.4rem;align-items:center;">
+              <input type="text" data-edit-input="${idx}" value="${escapeHtml(college)}" style="max-width:240px;padding:0.35rem 0.55rem;font-size:0.88rem;" />
+              <button type="button" class="btn btn-primary btn-sm" data-save-edit="${idx}">Save</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-cancel-edit="${idx}">Cancel</button>
+            </div>
+          </td>
+          <td style="width:160px;text-align:right;">
+            <div style="display:inline-flex;gap:0.4rem;">
+              <button type="button" class="btn btn-ghost btn-sm" data-trigger-edit="${idx}">Edit</button>
+              <button type="button" class="btn btn-danger-ghost btn-sm" data-delete-client="${idx}">Delete</button>
+            </div>
+          </td>
+        </tr>`
+      )
+      .join("");
+
+    el.clientsManageTable.innerHTML = `
+      <table class="checklist-table">
+        <thead>
+          <tr>
+            <th style="width:50px;">#</th>
+            <th>Client / College Name</th>
+            <th style="width:160px;text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+
+    // Hook edit triggers
+    el.clientsManageTable.querySelectorAll("[data-trigger-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = btn.dataset.triggerEdit;
+        const display = el.clientsManageTable.querySelector(`[data-name-display="${idx}"]`);
+        const form = el.clientsManageTable.querySelector(`[data-edit-form="${idx}"]`);
+        if (display && form) {
+          display.classList.add("hidden");
+          form.classList.remove("hidden");
+          const input = form.querySelector(`[data-edit-input="${idx}"]`);
+          if (input) input.focus();
+        }
+      });
+    });
+
+    // Hook cancel edit
+    el.clientsManageTable.querySelectorAll("[data-cancel-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = btn.dataset.cancelEdit;
+        const display = el.clientsManageTable.querySelector(`[data-name-display="${idx}"]`);
+        const form = el.clientsManageTable.querySelector(`[data-edit-form="${idx}"]`);
+        if (display && form) {
+          form.classList.add("hidden");
+          display.classList.remove("hidden");
+        }
+      });
+    });
+
+    // Hook save edit
+    el.clientsManageTable.querySelectorAll("[data-save-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.saveEdit);
+        const input = el.clientsManageTable.querySelector(`[data-edit-input="${idx}"]`);
+        const newName = input ? input.value.trim() : "";
+        const oldName = colleges[idx];
+        if (!newName) {
+          showToast("Client name cannot be blank.");
+          return;
+        }
+        if (newName.toLowerCase() !== oldName.toLowerCase() && colleges.some((c) => c.toLowerCase() === newName.toLowerCase())) {
+          showToast(`"${newName}" already exists.`);
+          return;
+        }
+
+        // Update in customClients
+        if (!Array.isArray(state.customClients)) state.customClients = [...colleges];
+        const cIdx = state.customClients.findIndex((c) => c.toLowerCase() === oldName.toLowerCase());
+        if (cIdx >= 0) {
+          state.customClients[cIdx] = newName;
+        } else {
+          state.customClients.push(newName);
+        }
+
+        // Update in faculties clients
+        state.users.forEach((u) => {
+          if (Array.isArray(u.clients)) {
+            u.clients = u.clients.map((c) => (c.toLowerCase() === oldName.toLowerCase() ? newName : c));
           }
         });
-      }
+
+        // Update in reports clients
+        state.reports.forEach((r) => {
+          if (Array.isArray(r.clients)) {
+            r.clients.forEach((c) => {
+              if (c.name.toLowerCase() === oldName.toLowerCase()) c.name = newName;
+            });
+          }
+        });
+
+        saveState(state);
+        renderClientsManageTable();
+        renderAdminCompletionDashboard();
+        renderFacultyDirectory();
+        showToast(`Renamed "${oldName}" to "${newName}".`);
+      });
     });
-    return list;
+
+    // Hook delete client
+    el.clientsManageTable.querySelectorAll("[data-delete-client]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.deleteClient);
+        const targetName = colleges[idx];
+        if (!confirm(`Delete client "${targetName}"? This removes it from the client list.`)) return;
+
+        if (!Array.isArray(state.customClients)) state.customClients = [...colleges];
+        state.customClients = state.customClients.filter((c) => c.toLowerCase() !== targetName.toLowerCase());
+
+        // Remove from faculty client lists
+        state.users.forEach((u) => {
+          if (Array.isArray(u.clients)) {
+            u.clients = u.clients.filter((c) => c.toLowerCase() !== targetName.toLowerCase());
+          }
+        });
+
+        saveState(state);
+        renderClientsManageTable();
+        renderAdminCompletionDashboard();
+        renderFacultyDirectory();
+        showToast(`Deleted client "${targetName}".`);
+      });
+    });
+  }
+
+  if (el.addGlobalClientForm) {
+    el.addGlobalClientForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = el.newGlobalClientInput.value.trim();
+      if (!name) return;
+
+      const colleges = getAllColleges();
+      if (colleges.some((c) => c.toLowerCase() === name.toLowerCase())) {
+        showToast(`"${name}" is already in the clients list.`);
+        return;
+      }
+
+      if (!Array.isArray(state.customClients)) state.customClients = [...colleges];
+      state.customClients.push(name);
+      saveState(state);
+
+      el.newGlobalClientInput.value = "";
+      renderClientsManageTable();
+      renderAdminCompletionDashboard();
+      showToast(`Added client "${name}".`);
+    });
   }
 
   function getCollegeStatusForDate(collegeName, targetDate) {

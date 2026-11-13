@@ -87,12 +87,39 @@
         <div class="picker-controls">
           <select id="admin-section-dropdown" class="admin-select-dropdown" aria-label="Select section to view">
             <option value="none">▼ Choose Section (Click Down Arrow)</option>
+            <option value="clients-tab">Manage Clients</option>
             <option value="reports-tab">Faculty Submissions</option>
             <option value="faculties-tab">Manage Faculties</option>
             <option value="sheet-tab">Google Sheet Sync</option>
           </select>
         </div>
       </div>
+
+      <!-- TAB: MANAGE CLIENTS -->
+      <section id="clients-tab" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-head wrap">
+            <div>
+              <h3>Manage Clients / Colleges</h3>
+              <p class="muted small-text">Add new clients, edit their names, or remove them across the system.</p>
+            </div>
+            <span id="global-client-count" class="count-pill">0 Clients</span>
+          </div>
+
+          <form id="add-global-client-form" class="mt-md" style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+            <input
+              id="new-global-client-input"
+              type="text"
+              placeholder="Enter new client name (e.g. SRM, CIT)..."
+              required
+              style="max-width:320px;"
+            />
+            <button type="submit" class="btn btn-primary">+ Add New Client</button>
+          </form>
+
+          <div id="clients-manage-table" class="table-wrap mt-md"></div>
+        </div>
+      </section>
 
       <!-- TAB 1: SUBMISSIONS -->
       <section id="reports-tab" class="tab-panel hidden">
