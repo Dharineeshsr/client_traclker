@@ -881,6 +881,43 @@
     const dashOffset = (circumference * (1 - collegePct / 100)).toFixed(1);
     const strokeColor = collegePct === 100 ? "#16a34a" : collegePct > 0 ? "#2563eb" : "#94a3b8";
 
+    const actIncompleteColleges = items.filter((i) => i.activityStatus === "not_completed");
+    const calIncompleteColleges = items.filter((i) => i.calendarStatus === "not_completed");
+
+    const actIncompleteListHtml = actIncompleteColleges.length
+      ? actIncompleteColleges
+          .map((col) => {
+            const reasons = [];
+            if (col.activityYears) {
+              const yearNotes = ACTIVITY_YEARS.filter(
+                (y) => col.activityYears[y.key] && col.activityYears[y.key].status === "not_completed"
+              ).map((y) => {
+                const rem = col.activityYears[y.key].remarks;
+                return `${y.label}: ${rem || "Not Done"}`;
+              });
+              reasons.push(yearNotes.join(", ") || "Incomplete");
+            } else {
+              reasons.push(col.activityRemarks || "Not Done");
+            }
+            return `
+            <li class="incomplete-college-item">
+              <strong>${escapeHtml(col.name)}</strong>
+              <span class="muted" style="font-size:0.75rem;">${escapeHtml(reasons.join(" | "))}</span>
+            </li>`;
+          })
+          .join("")
+      : `<li class="small-text muted">No incomplete activity colleges.</li>`;
+
+    const calIncompleteListHtml = calIncompleteColleges.length
+      ? calIncompleteColleges
+          .map((col) => `
+            <li class="incomplete-college-item">
+              <strong>${escapeHtml(col.name)}</strong>
+              <span class="muted" style="font-size:0.75rem;">${escapeHtml(col.calendarRemarks || "Not Done")}</span>
+            </li>`)
+          .join("")
+      : `<li class="small-text muted">No incomplete calendar colleges.</li>`;
+
     const incompleteListHtml = incompleteColleges.length
       ? incompleteColleges
           .map((col) => {
@@ -939,14 +976,14 @@
                 <span class="badge badge-success">${collegeDone} Completed</span>
                 <span
                   class="badge badge-danger ${incompleteColleges.length ? "badge-interactive" : ""}"
-                  data-toggle-incomplete
+                  data-toggle-incomplete="overall"
                   title="${incompleteColleges.length ? "Click down arrow to view incomplete colleges" : ""}"
                 >
-                  ${collegeIncomplete} Incomplete ${incompleteColleges.length ? '<span class="badge-arrow">▼</span>' : ""}
+                  ${collegeIncomplete} Incomplete ${incompleteColleges.length ? '<span class="badge-arrow" data-arrow="overall">▼</span>' : ""}
                 </span>
                 <span class="badge badge-neutral">${collegeNotMarked} Not Marked</span>
               </div>
-              <div class="incomplete-colleges-dropdown hidden" data-incomplete-popup>
+              <div class="incomplete-colleges-dropdown hidden" data-incomplete-popup="overall">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                   <strong style="font-size:0.8rem;color:var(--danger);">Incomplete Colleges:</strong>
                   <span class="muted" style="font-size:0.75rem;">(${incompleteColleges.length})</span>
@@ -962,10 +999,23 @@
             <strong>Activities Status</strong>
             <span class="progress-pct">${actDone} / ${total}</span>
           </div>
-          <div class="progress-meta">
+          <div class="progress-meta" style="align-items:center;">
             <span class="badge badge-success">${actDone} Completed</span>
-            <span class="badge badge-danger">${actNotDone} Not Completed</span>
+            <span
+              class="badge badge-danger ${actIncompleteColleges.length ? "badge-interactive" : ""}"
+              data-toggle-incomplete="activity"
+              title="${actIncompleteColleges.length ? "Click down arrow to view incomplete activities" : ""}"
+            >
+              ${actNotDone} Not Completed ${actIncompleteColleges.length ? '<span class="badge-arrow" data-arrow="activity">▼</span>' : ""}
+            </span>
             <span class="badge badge-neutral">${actNotMarked} Not Marked</span>
+          </div>
+          <div class="incomplete-colleges-dropdown hidden" data-incomplete-popup="activity">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="font-size:0.8rem;color:var(--danger);">Incomplete Activity Colleges:</strong>
+              <span class="muted" style="font-size:0.75rem;">(${actIncompleteColleges.length})</span>
+            </div>
+            <ul class="incomplete-colleges-list">${actIncompleteListHtml}</ul>
           </div>
         </div>
 
@@ -974,10 +1024,23 @@
             <strong>Calendar Status</strong>
             <span class="progress-pct">${calDone} / ${total}</span>
           </div>
-          <div class="progress-meta">
+          <div class="progress-meta" style="align-items:center;">
             <span class="badge badge-success">${calDone} Completed</span>
-            <span class="badge badge-danger">${calNotDone} Not Completed</span>
+            <span
+              class="badge badge-danger ${calIncompleteColleges.length ? "badge-interactive" : ""}"
+              data-toggle-incomplete="calendar"
+              title="${calIncompleteColleges.length ? "Click down arrow to view incomplete calendar" : ""}"
+            >
+              ${calNotDone} Not Completed ${calIncompleteColleges.length ? '<span class="badge-arrow" data-arrow="calendar">▼</span>' : ""}
+            </span>
             <span class="badge badge-neutral">${calNotMarked} Not Marked</span>
+          </div>
+          <div class="incomplete-colleges-dropdown hidden" data-incomplete-popup="calendar">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="font-size:0.8rem;color:var(--danger);">Incomplete Calendar Colleges:</strong>
+              <span class="muted" style="font-size:0.75rem;">(${calIncompleteColleges.length})</span>
+            </div>
+            <ul class="incomplete-colleges-list">${calIncompleteListHtml}</ul>
           </div>
         </div>
       </div>`;
@@ -1049,16 +1112,18 @@
         </table>
       </div>`;
 
-    const toggleBtn = container.querySelector("[data-toggle-incomplete]");
-    const dropdown = container.querySelector("[data-incomplete-popup]");
-    const arrow = container.querySelector(".badge-arrow");
-    if (toggleBtn && dropdown && incompleteColleges.length) {
-      toggleBtn.addEventListener("click", () => {
-        const isHidden = dropdown.classList.contains("hidden");
-        dropdown.classList.toggle("hidden", !isHidden);
-        if (arrow) arrow.classList.toggle("open", isHidden);
-      });
-    }
+    container.querySelectorAll("[data-toggle-incomplete]").forEach((toggleBtn) => {
+      const type = toggleBtn.getAttribute("data-toggle-incomplete");
+      const dropdown = container.querySelector(`[data-incomplete-popup="${type}"]`);
+      const arrow = container.querySelector(`[data-arrow="${type}"]`);
+      if (dropdown) {
+        toggleBtn.addEventListener("click", () => {
+          const isHidden = dropdown.classList.contains("hidden");
+          dropdown.classList.toggle("hidden", !isHidden);
+          if (arrow) arrow.classList.toggle("open", isHidden);
+        });
+      }
+    });
   }
 
   function renderAdminCompletionDashboard() {
