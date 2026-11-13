@@ -364,6 +364,55 @@ textarea:focus {
   padding-bottom: 0.65rem;
 }
 
+.admin-section-picker-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.picker-label {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.picker-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-select-dropdown {
+  min-width: 260px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.52rem 0.85rem;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.admin-select-dropdown:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.tabs.inline-tabs {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .tab-btn {
   padding: 0.5rem 0.95rem;
   border-radius: 8px;

@@ -80,14 +80,27 @@
         <div id="admin-completion-dashboard" class="mt-md"></div>
       </section>
 
-      <nav class="tabs" aria-label="Admin sections">
-        <button type="button" class="tab-btn active" data-tab="reports-tab">Faculty Submissions</button>
-        <button type="button" class="tab-btn" data-tab="faculties-tab">Manage Faculties</button>
-        <button type="button" class="tab-btn" data-tab="sheet-tab">Google Sheet Sync</button>
-      </nav>
+      <div class="admin-section-picker-wrap">
+        <label for="admin-section-dropdown" class="picker-label">
+          <strong>View Section:</strong>
+        </label>
+        <div class="picker-controls">
+          <select id="admin-section-dropdown" class="admin-select-dropdown" aria-label="Select section to view">
+            <option value="none">▼ Choose Section (Click Down Arrow)</option>
+            <option value="reports-tab">Faculty Submissions</option>
+            <option value="faculties-tab">Manage Faculties</option>
+            <option value="sheet-tab">Google Sheet Sync</option>
+          </select>
+          <nav class="tabs inline-tabs" aria-label="Admin sections">
+            <button type="button" class="tab-btn" data-tab="reports-tab">Faculty Submissions ▾</button>
+            <button type="button" class="tab-btn" data-tab="faculties-tab">Manage Faculties ▾</button>
+            <button type="button" class="tab-btn" data-tab="sheet-tab">Google Sheet Sync ▾</button>
+          </nav>
+        </div>
+      </div>
 
       <!-- TAB 1: SUBMISSIONS -->
-      <section id="reports-tab" class="tab-panel">
+      <section id="reports-tab" class="tab-panel hidden">
         <div class="card">
           <div class="card-head wrap">
             <h3>Submitted Reports</h3>

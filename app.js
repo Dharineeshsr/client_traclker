@@ -114,6 +114,7 @@
     dashFilterDate: document.getElementById("dash-filter-date"),
     adminCompletionDashboard: document.getElementById("admin-completion-dashboard"),
     facultyCompletionDashboard: document.getElementById("faculty-completion-dashboard"),
+    adminSectionDropdown: document.getElementById("admin-section-dropdown"),
     tabBtns: document.querySelectorAll(".tab-btn"),
     reportsTab: document.getElementById("reports-tab"),
     facultiesTab: document.getElementById("faculties-tab"),
@@ -355,14 +356,31 @@
   }
 
   // ---- ADMIN VIEW ----
+  function setAdminVisibleSection(target) {
+    const isNone = !target || target === "none";
+    if (el.adminSectionDropdown) {
+      el.adminSectionDropdown.value = isNone ? "none" : target;
+    }
+    el.tabBtns.forEach((b) => {
+      b.classList.toggle("active", !isNone && b.dataset.tab === target);
+    });
+    el.reportsTab.classList.toggle("hidden", isNone || target !== "reports-tab");
+    el.facultiesTab.classList.toggle("hidden", isNone || target !== "faculties-tab");
+    el.sheetTab.classList.toggle("hidden", isNone || target !== "sheet-tab");
+  }
+
+  if (el.adminSectionDropdown) {
+    el.adminSectionDropdown.addEventListener("change", (e) => {
+      setAdminVisibleSection(e.target.value);
+    });
+  }
+
   el.tabBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
-      el.tabBtns.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
       const target = btn.dataset.tab;
-      el.reportsTab.classList.toggle("hidden", target !== "reports-tab");
-      el.facultiesTab.classList.toggle("hidden", target !== "faculties-tab");
-      el.sheetTab.classList.toggle("hidden", target !== "sheet-tab");
+      const targetPanel = document.getElementById(target);
+      const isCurrentlyOpen = targetPanel && !targetPanel.classList.contains("hidden");
+      setAdminVisibleSection(isCurrentlyOpen ? "none" : target);
     });
   });
 
