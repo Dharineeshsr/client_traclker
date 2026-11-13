@@ -1,4 +1,4 @@
-# Faculty Activity & Compliance Tracker
+# Client Tracker
 
 A lightweight HTML, CSS, and JavaScript web application for **Admin** and **Faculty** users to manage client assignments, track daily **Client Activities** and **Calendar** completion, log **Grievances**, and sync all submissions directly to **Google Sheets** via Google Apps Script (no database required).
 

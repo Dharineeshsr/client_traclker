@@ -1,5 +1,5 @@
 /**
- * Google Apps Script for Faculty Activity & Compliance Tracker
+ * Google Apps Script for Client Tracker
  * Target Spreadsheet ID: 1qVaJ33gq2IcBon1GbKCbOhm1onOAJRHNtytGzN6Pmns
  *
  * Setup:
